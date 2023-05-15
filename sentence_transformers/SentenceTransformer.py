@@ -670,6 +670,18 @@ class SentenceTransformer(nn.Sequential):
             ]
 
             optimizer = optimizer_class(optimizer_grouped_parameters, **optimizer_params)
+            if optimizer_class.__name__ == "Adam8bit":
+                import bitsandbytes
+                manager = bitsandbytes.optim.GlobalOptimManager.get_instance()
+                skipped = 0
+                for module in loss_model.modules():
+                    if isinstance(module, nn.Embedding):
+                        skipped += sum({p.data_ptr(): p.numel() for p in module.parameters()}.values())
+                        print(f"skipped {module}: {skipped / 2 ** 20}M params")
+                        manager.register_module_override(module, "weight", {"optim_bits": 32})
+                        logger.debug(f"bitsandbytes: will optimize {module} in fp32")
+                print(f"skipped: {skipped / 2 ** 20}M params")
+
             scheduler_obj = self._get_scheduler(optimizer, scheduler=scheduler, warmup_steps=warmup_steps, t_total=num_train_steps)
 
             optimizers.append(optimizer)

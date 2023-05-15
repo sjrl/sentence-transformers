@@ -48,7 +48,8 @@ class MultipleNegativesRankingLoss(nn.Module):
         self.similarity_fct = similarity_fct
         self.cross_entropy_loss = nn.CrossEntropyLoss()
 
-
+    # TODO Investigate how many reps there are for one negative and multiple negatives
+    #      And related check how many sentence_features there are
     def forward(self, sentence_features: Iterable[Dict[str, Tensor]], labels: Tensor):
         reps = [self.model(sentence_feature)['sentence_embedding'] for sentence_feature in sentence_features]
         embeddings_a = reps[0]
