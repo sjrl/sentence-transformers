@@ -759,7 +759,7 @@ class SentenceTransformer(nn.Sequential):
 
                 if output_path is not None and training_steps % 20 == 0:
                     with open(os.path.join(output_path, "train_logs.jsonl"), "a") as f1:
-                        json.dump(train_log[-1], f1)
+                        f1.write(json.dumps(train_log[-1]) + "\n")
 
 
             self._eval_during_training(evaluator, output_path, save_best_model, epoch, -1, callback)
