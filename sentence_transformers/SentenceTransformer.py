@@ -693,6 +693,7 @@ class SentenceTransformer(nn.Sequential):
 
         num_train_objectives = len(train_objectives)
 
+        train_log = []
         skip_scheduler = False
         for epoch in trange(epochs, desc="Epoch", disable=not show_progress_bar):
             training_steps = 0
@@ -744,6 +745,7 @@ class SentenceTransformer(nn.Sequential):
 
                 training_steps += 1
                 global_step += 1
+                train_log.append({"loss": loss_value.item(), "step": global_step, "epoch": training_steps/steps_per_epoch + epoch})
 
                 if evaluation_steps > 0 and training_steps % evaluation_steps == 0:
                     self._eval_during_training(evaluator, output_path, save_best_model, epoch, training_steps, callback)
@@ -754,6 +756,10 @@ class SentenceTransformer(nn.Sequential):
 
                 if checkpoint_path is not None and checkpoint_save_steps is not None and checkpoint_save_steps > 0 and global_step % checkpoint_save_steps == 0:
                     self._save_checkpoint(checkpoint_path, checkpoint_save_total_limit, global_step)
+
+                if output_path is not None and training_steps % 20 == 0:
+                    with open(os.path.join(output_path, "train_logs.json"), "w") as f1:
+                        json.dump(train_log, f1)
 
 
             self._eval_during_training(evaluator, output_path, save_best_model, epoch, -1, callback)
