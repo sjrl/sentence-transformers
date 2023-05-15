@@ -758,8 +758,8 @@ class SentenceTransformer(nn.Sequential):
                     self._save_checkpoint(checkpoint_path, checkpoint_save_total_limit, global_step)
 
                 if output_path is not None and training_steps % 20 == 0:
-                    with open(os.path.join(output_path, "train_logs.json"), "w") as f1:
-                        json.dump(train_log, f1)
+                    with open(os.path.join(output_path, "train_logs.jsonl"), "a") as f1:
+                        json.dump(train_log[-1], f1)
 
 
             self._eval_during_training(evaluator, output_path, save_best_model, epoch, -1, callback)
