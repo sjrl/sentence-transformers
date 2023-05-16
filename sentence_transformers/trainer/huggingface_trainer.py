@@ -26,9 +26,7 @@ class SentenceTransformersCollator:
     pad_to_multiple_of: Optional[int] = None
     return_tensors: str = "pt"
 
-    def __init__(
-        self, tokenizer: PreTrainedTokenizerBase, text_columns: List[str]
-    ) -> None:
+    def __init__(self, tokenizer: PreTrainedTokenizerBase, text_columns: List[str]) -> None:
         self.tokenizer = tokenizer
         self.text_columns = text_columns
 
@@ -114,13 +112,7 @@ class SentenceTransformersTrainer(Trainer):
     >> trainer.train()
     """
 
-    def __init__(
-        self,
-        *args,
-        text_columns: List[str],
-        loss: nn.Module,
-        **kwargs,
-    ) -> None:
+    def __init__(self, *args, text_columns: List[str], loss: nn.Module, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.text_columns = text_columns
         self.loss = loss
@@ -141,9 +133,7 @@ class SentenceTransformersTrainer(Trainer):
             return loss, output
         return loss
 
-    def collect_features(
-        self, inputs: Dict[str, Union[torch.Tensor, Any]]
-    ) -> List[Dict[str, torch.Tensor]]:
+    def collect_features(self, inputs: Dict[str, Union[torch.Tensor, Any]]) -> List[Dict[str, torch.Tensor]]:
         """Turn the inputs from the dataloader into the separate model inputs."""
         return [
             {
