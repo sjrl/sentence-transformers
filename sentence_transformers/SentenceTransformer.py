@@ -747,7 +747,7 @@ class SentenceTransformer(nn.Sequential):
                 global_step += 1
                 train_log.append({"loss": loss_value.item(), "step": global_step, "epoch": training_steps/steps_per_epoch + epoch})
 
-                if evaluation_steps > 0 and training_steps % evaluation_steps == 0:
+                if evaluation_steps > 0 and (training_steps % evaluation_steps == 0 or global_step == 1):
                     self._eval_during_training(evaluator, output_path, save_best_model, epoch, training_steps, callback)
 
                     for loss_model in loss_models:
