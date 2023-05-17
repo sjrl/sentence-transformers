@@ -31,7 +31,8 @@ class SentenceTransformersCollator:
         self.text_columns = text_columns
 
     def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
-        batch = {"label": torch.tensor([row["label"] for row in features])}
+        # batch = {"label": torch.tensor([row["label"] for row in features])}
+        batch = {}
         for column in self.text_columns:
             padded = self._encode([row[column] for row in features])
             batch[f"{column}_input_ids"] = padded.input_ids
@@ -124,21 +125,21 @@ class SentenceTransformersTrainer(Trainer):
         inputs: Dict[str, Union[torch.Tensor, Any]],
         return_outputs: bool = False,
     ) -> Union[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+
         features = self.collect_features(inputs)
-        loss = self.loss(features, inputs["label"])
+        loss = self.loss(features, inputs.get("label", None))
         if return_outputs:
-            output = torch.cat(
-                [model(row)["sentence_embedding"][:, None] for row in features], dim=1
-            )
+            output = torch.cat([model(row)["sentence_embedding"][:, None] for row in features], dim=1)
             return loss, output
         return loss
 
     def collect_features(self, inputs: Dict[str, Union[torch.Tensor, Any]]) -> List[Dict[str, torch.Tensor]]:
         """Turn the inputs from the dataloader into the separate model inputs."""
+        # SentenceTransformer model expects input_ids and attention_mask as input
         return [
             {
                 "input_ids": inputs[f"{column}_input_ids"],
-                "attention_mask": inputs[f"{column}_attention_mask"],
+                "attention_mask": inputs[f"{column}_attention_mask"]
             }
             for column in self.text_columns
         ]
