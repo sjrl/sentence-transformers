@@ -11,6 +11,47 @@ from transformers.utils.generic import PaddingStrategy
 from sentence_transformers import SentenceTransformer
 
 
+class SentenceTransformerModel(nn.Module):
+    def __init__(self, sentence_transformer, loss):
+        super(SentenceTransformerModel, self).__init__()
+        self.sentence_transformer = sentence_transformer
+        self.loss_model = loss
+
+    def forward(
+        self,
+        query_input_ids,
+        query_attention_mask,
+        positive_input_ids,
+        positive_attention_mask,
+        negative_input_ids=None,
+        negative_attention_mask=None,
+        labels=None,
+    ):
+        inputs = {
+            "query_input_ids": query_input_ids,
+            "query_attention_mask": query_attention_mask,
+            "positive_input_ids": positive_input_ids,
+            "positive_attention_mask": positive_attention_mask,
+            "negative_input_ids": negative_input_ids,
+            "negative_attention_mask": negative_attention_mask,
+        }
+        features = self._collect_features(inputs)
+        loss = self.loss(features, labels)
+        output = torch.cat([self.sentence_transformer(row)["sentence_embedding"][:, None] for row in features], dim=1)
+        return loss, output
+
+    def _collect_features(self, inputs: Dict[str, Union[torch.Tensor, Any]]) -> List[Dict[str, torch.Tensor]]:
+        """Turn the inputs from the dataloader into the separate model inputs."""
+        # SentenceTransformer model expects input_ids and attention_mask as input
+        return [
+            {
+                "input_ids": inputs[f"{column}_input_ids"],
+                "attention_mask": inputs[f"{column}_attention_mask"]
+            }
+            for column in self.text_columns
+        ]
+
+
 @dataclass
 class SentenceTransformersCollator:
     """Collator for a SentenceTransformers model.
@@ -50,96 +91,35 @@ class SentenceTransformersCollator:
         )
 
 
-class SentenceTransformersTrainer(Trainer):
-    """Huggingface Trainer for a SentenceTransformers model.
-
-    This works with the two text dataset that is used as the example in the training overview:
-    https://www.sbert.net/docs/training/overview.html
-
-    You use this by providing the loss function and the sentence transformer model.
-    An example that replicates the quickstart is:
-
-    >> from sentence_transformers import SentenceTransformer, losses, evaluation
-    >> import datasets
-    >> from transformers import TrainingArguments, EvalPrediction
-
-    >> sick_ds = datasets.load_dataset("sick")
-
-    >> text_columns = ["sentence_A", "sentence_B"]
-    >> model = SentenceTransformer("distilbert-base-nli-mean-tokens")
-    >> tokenizer = model.tokenizer
-    >> loss = losses.CosineSimilarityLoss(model)
-    >> data_collator = SentenceTransformersCollator(
-    >>     tokenizer=tokenizer,
-    >>     text_columns=text_columns,
-    >> )
-
-    >> evaluator = evaluation.EmbeddingSimilarityEvaluator(
-    >>     sick_ds["validation"]["sentence_A"],
-    >>     sick_ds["validation"]["sentence_B"],
-    >>     sick_ds["validation"]["label"],
-    >>     main_similarity=evaluation.SimilarityFunction.COSINE,
-    >> )
-    >> def compute_metrics(predictions: EvalPrediction) -> Dict[str, float]:
-    >>     return {
-    >>         "cosine_similarity": evaluator(model)
-    >>     }
-
-    >> training_arguments = TrainingArguments(
-    >>     report_to="none",
-    >>     output_dir=run_folder,
-    >>     num_train_epochs=2,
-    >>     # checkpoint settings
-    >>     logging_dir=run_folder / "logs",
-    >>     save_total_limit=2,
-    >>     load_best_model_at_end=True,
-    >>     metric_for_best_model="cosine_similarity",
-    >>     greater_is_better=True,
-    >>     # needed to get sentence_A and sentence_B
-    >>     remove_unused_columns=False,
-    >> )
-
-    >> trainer = SentenceTransformersTrainer(
-    >>     model=model,
-    >>     args=training_arguments,
-    >>     train_dataset=sick_ds["train"],
-    >>     eval_dataset=sick_ds["validation"],
-    >>     data_collator=data_collator,
-    >>     tokenizer=tokenizer,
-    >>     loss=loss,
-    >>     text_columns=text_columns,
-    >>     compute_metrics=compute_metrics,
-    >> )
-    >> trainer.train()
-    """
-
-    def __init__(self, *args, text_columns: List[str], loss: nn.Module, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.text_columns = text_columns
-        self.loss = loss
-        self.loss.to(self.model.device)
-
-    def compute_loss(
-        self,
-        model: SentenceTransformer,
-        inputs: Dict[str, Union[torch.Tensor, Any]],
-        return_outputs: bool = False,
-    ) -> Union[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
-
-        features = self.collect_features(inputs)
-        loss = self.loss(features, inputs.get("label", None))
-        if return_outputs:
-            output = torch.cat([model(row)["sentence_embedding"][:, None] for row in features], dim=1)
-            return loss, output
-        return loss
-
-    def collect_features(self, inputs: Dict[str, Union[torch.Tensor, Any]]) -> List[Dict[str, torch.Tensor]]:
-        """Turn the inputs from the dataloader into the separate model inputs."""
-        # SentenceTransformer model expects input_ids and attention_mask as input
-        return [
-            {
-                "input_ids": inputs[f"{column}_input_ids"],
-                "attention_mask": inputs[f"{column}_attention_mask"]
-            }
-            for column in self.text_columns
-        ]
+# Old version that doens't work
+# class SentenceTransformersTrainer(Trainer):
+#     def __init__(self, *args, text_columns: List[str], loss: nn.Module, **kwargs) -> None:
+#         super().__init__(*args, **kwargs)
+#         self.text_columns = text_columns
+#         self.loss = loss
+#         self.loss.to(self.model.device)
+#
+#     def compute_loss(
+#         self,
+#         model: SentenceTransformer,
+#         inputs: Dict[str, Union[torch.Tensor, Any]],
+#         return_outputs: bool = False,
+#     ) -> Union[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+#
+#         features = self.collect_features(inputs)
+#         loss = self.loss(features, inputs.get("label", None))
+#         if return_outputs:
+#             output = torch.cat([model(row)["sentence_embedding"][:, None] for row in features], dim=1)
+#             return loss, output
+#         return loss
+#
+#     def collect_features(self, inputs: Dict[str, Union[torch.Tensor, Any]]) -> List[Dict[str, torch.Tensor]]:
+#         """Turn the inputs from the dataloader into the separate model inputs."""
+#         # SentenceTransformer model expects input_ids and attention_mask as input
+#         return [
+#             {
+#                 "input_ids": inputs[f"{column}_input_ids"],
+#                 "attention_mask": inputs[f"{column}_attention_mask"]
+#             }
+#             for column in self.text_columns
+#         ]
