@@ -536,8 +536,8 @@ class SentenceTransformer(nn.Sequential):
         :return:
             a batch of tensors for the model
         """
-        texts = [example.texts for example in batch]
-        sentence_features = [self.tokenize(sentence) for sentence in zip(*texts)]
+        texts = [example.texts for example in batch]  # [[q1, p1, n1], [q2, p2, n2], ...]
+        sentence_features = [self.tokenize(sentence) for sentence in zip(*texts)]  # [(q1, q2, ...), (p1, p2, ...), (n1, n2, ...)]
         labels = [example.label for example in batch]
         labels = torch.tensor(labels)
         return sentence_features, labels

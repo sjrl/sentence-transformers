@@ -96,13 +96,21 @@ class SentenceTransformerModel(nn.Module):
     def _collect_features(self, inputs: Dict[str, Union[torch.Tensor, Any]]) -> List[Dict[str, torch.Tensor]]:
         """Turn the inputs from the dataloader into the separate model inputs."""
         # SentenceTransformer model expects input_ids and attention_mask as input
-        return [
-            {
-                "input_ids": inputs[f"{column}_input_ids"],
-                "attention_mask": inputs[f"{column}_attention_mask"]
-            }
-            for column in self.text_columns
-        ]
+        all_keys = [k.split(self.text_columns[0] + '_')[-1] for k in inputs.keys()]
+        features = []
+        for column in self.text_columns:
+            one_set = {}
+            for k in all_keys:
+                one_set[k] = inputs[f"{column}_{k}"]
+            features.append(one_set)
+        return features
+        # return [
+        #     {
+        #         "input_ids": inputs[f"{column}_input_ids"],
+        #         "attention_mask": inputs[f"{column}_attention_mask"]
+        #     }
+        #     for column in self.text_columns
+        # ]
 
 
 @dataclass
@@ -135,14 +143,13 @@ class SentenceTransformersCollator:
         return batch
 
     def _encode(self, texts: List[str]) -> BatchEncoding:
-        output = self.tokenizer(
+        return self.tokenizer(
             texts,
-            padding=self.padding,
+            padding=True,
             truncation='longest_first',
-            return_tensors=self.return_tensors,
+            return_tensors="pt",
             max_length=self.max_seq_length
         )
-        return output
         # tokens = self.tokenizer(
         #     texts,
         #     return_attention_mask=True
