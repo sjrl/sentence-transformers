@@ -11,11 +11,55 @@ from transformers.utils.generic import PaddingStrategy
 from sentence_transformers import SentenceTransformer
 
 
+def cos_sim(a: torch.Tensor, b: torch.Tensor):
+    """
+    Computes the cosine similarity cos_sim(a[i], b[j]) for all i and j.
+    :return: Matrix with res[i][j]  = cos_sim(a[i], b[j])
+    """
+    if not isinstance(a, torch.Tensor):
+        a = torch.tensor(a)
+
+    if not isinstance(b, torch.Tensor):
+        b = torch.tensor(b)
+
+    if len(a.shape) == 1:
+        a = a.unsqueeze(0)
+
+    if len(b.shape) == 1:
+        b = b.unsqueeze(0)
+
+    a_norm = torch.nn.functional.normalize(a, p=2, dim=1)
+    b_norm = torch.nn.functional.normalize(b, p=2, dim=1)
+    return torch.mm(a_norm, b_norm.transpose(0, 1))
+
+
+def dot_score(a: torch.Tensor, b: torch.Tensor):
+    """
+    Computes the dot-product dot_prod(a[i], b[j]) for all i and j.
+    :return: Matrix with res[i][j]  = dot_prod(a[i], b[j])
+    """
+    if not isinstance(a, torch.Tensor):
+        a = torch.tensor(a)
+
+    if not isinstance(b, torch.Tensor):
+        b = torch.tensor(b)
+
+    if len(a.shape) == 1:
+        a = a.unsqueeze(0)
+
+    if len(b.shape) == 1:
+        b = b.unsqueeze(0)
+
+    return torch.mm(a, b.transpose(0, 1))
+
+
 class SentenceTransformerModel(nn.Module):
-    def __init__(self, sentence_transformer, loss):
+    def __init__(self, sentence_transformer, text_columns, scale: float = 20.0, similarity_fct=cos_sim):
         super(SentenceTransformerModel, self).__init__()
         self.sentence_transformer = sentence_transformer
-        self.loss_model = loss
+        self.text_columns = text_columns
+        self.scale = scale
+        self.similarity_fct = similarity_fct
 
     def forward(
         self,
@@ -36,8 +80,17 @@ class SentenceTransformerModel(nn.Module):
             "negative_attention_mask": negative_attention_mask,
         }
         features = self._collect_features(inputs)
-        loss = self.loss(features, labels)
-        output = torch.cat([self.sentence_transformer(row)["sentence_embedding"][:, None] for row in features], dim=1)
+
+        output = [self.sentence_transformer(sentence_feature)['sentence_embedding'] for sentence_feature in features]
+        embeddings_a = output[0]
+        embeddings_b = torch.cat(output[1:])
+
+        scores = self.similarity_fct(embeddings_a, embeddings_b) * self.scale
+        labels = torch.tensor(range(len(scores)), dtype=torch.long, device=scores.device)  # Example a[i] should match with b[i]
+        loss_fct = nn.CrossEntropyLoss()
+        loss = loss_fct(scores, labels)
+
+        output = torch.cat(output, dim=1)
         return loss, output
 
     def _collect_features(self, inputs: Dict[str, Union[torch.Tensor, Any]]) -> List[Dict[str, torch.Tensor]]:
