@@ -120,9 +120,10 @@ class SentenceTransformersCollator:
     pad_to_multiple_of: Optional[int] = None
     return_tensors: str = "pt"
 
-    def __init__(self, tokenizer: PreTrainedTokenizerBase, text_columns: List[str]) -> None:
+    def __init__(self, tokenizer: PreTrainedTokenizerBase, text_columns: List[str], max_seq_length: int) -> None:
         self.tokenizer = tokenizer
         self.text_columns = text_columns
+        self.max_seq_length = max_seq_length
 
     def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
         # batch = {"label": torch.tensor([row["label"] for row in features])}
@@ -134,14 +135,25 @@ class SentenceTransformersCollator:
         return batch
 
     def _encode(self, texts: List[str]) -> BatchEncoding:
-        tokens = self.tokenizer(texts, return_attention_mask=False)
-        return self.tokenizer.pad(
-            tokens,
+        output = self.tokenizer(
+            texts,
             padding=self.padding,
-            max_length=self.max_length,
-            pad_to_multiple_of=self.pad_to_multiple_of,
+            truncation='longest_first',
             return_tensors=self.return_tensors,
+            max_length=self.max_seq_length
         )
+        return output
+        # tokens = self.tokenizer(
+        #     texts,
+        #     return_attention_mask=True
+        # )
+        # return self.tokenizer.pad(
+        #     tokens,
+        #     padding=self.padding,
+        #     max_length=self.max_length,
+        #     pad_to_multiple_of=self.pad_to_multiple_of,
+        #     return_tensors=self.return_tensors,
+        # )
 
 
 # Old version that doens't work
