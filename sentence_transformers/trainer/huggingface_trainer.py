@@ -96,7 +96,7 @@ class SentenceTransformerModel(nn.Module):
     def _collect_features(self, inputs: Dict[str, Union[torch.Tensor, Any]]) -> List[Dict[str, torch.Tensor]]:
         """Turn the inputs from the dataloader into the separate model inputs."""
         # SentenceTransformer model expects input_ids and attention_mask as input
-        all_keys = [k.split(self.text_columns[0] + '_')[-1] for k in inputs.keys()]
+        all_keys = [k.split(self.text_columns[0] + '_')[-1] for k in inputs.keys() if self.text_columns[0] in k]
         features = []
         for column in self.text_columns:
             one_set = {}
