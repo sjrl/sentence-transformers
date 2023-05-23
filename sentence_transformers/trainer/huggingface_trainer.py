@@ -1,14 +1,12 @@
 """ A Trainer that is compatible with Huggingface transformers """
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 from torch import nn
-from transformers import PreTrainedTokenizerBase, Trainer
+from transformers import PreTrainedTokenizerBase
 from transformers.tokenization_utils import BatchEncoding
 from transformers.utils.generic import PaddingStrategy
-
-from sentence_transformers import SentenceTransformer
 
 
 def cos_sim(a: torch.Tensor, b: torch.Tensor):
@@ -104,13 +102,6 @@ class SentenceTransformerModel(nn.Module):
                 one_set[k] = inputs[f"{column}_{k}"]
             features.append(one_set)
         return features
-        # return [
-        #     {
-        #         "input_ids": inputs[f"{column}_input_ids"],
-        #         "attention_mask": inputs[f"{column}_attention_mask"]
-        #     }
-        #     for column in self.text_columns
-        # ]
 
 
 @dataclass
@@ -143,6 +134,7 @@ class SentenceTransformersCollator:
         return batch
 
     def _encode(self, texts: List[str]) -> BatchEncoding:
+        # This will basically do dynamic padding per batch
         return self.tokenizer(
             texts,
             padding=True,
@@ -150,48 +142,3 @@ class SentenceTransformersCollator:
             return_tensors="pt",
             max_length=self.max_seq_length
         )
-        # tokens = self.tokenizer(
-        #     texts,
-        #     return_attention_mask=True
-        # )
-        # return self.tokenizer.pad(
-        #     tokens,
-        #     padding=self.padding,
-        #     max_length=self.max_length,
-        #     pad_to_multiple_of=self.pad_to_multiple_of,
-        #     return_tensors=self.return_tensors,
-        # )
-
-
-# Old version that doens't work
-# class SentenceTransformersTrainer(Trainer):
-#     def __init__(self, *args, text_columns: List[str], loss: nn.Module, **kwargs) -> None:
-#         super().__init__(*args, **kwargs)
-#         self.text_columns = text_columns
-#         self.loss = loss
-#         self.loss.to(self.model.device)
-#
-#     def compute_loss(
-#         self,
-#         model: SentenceTransformer,
-#         inputs: Dict[str, Union[torch.Tensor, Any]],
-#         return_outputs: bool = False,
-#     ) -> Union[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
-#
-#         features = self.collect_features(inputs)
-#         loss = self.loss(features, inputs.get("label", None))
-#         if return_outputs:
-#             output = torch.cat([model(row)["sentence_embedding"][:, None] for row in features], dim=1)
-#             return loss, output
-#         return loss
-#
-#     def collect_features(self, inputs: Dict[str, Union[torch.Tensor, Any]]) -> List[Dict[str, torch.Tensor]]:
-#         """Turn the inputs from the dataloader into the separate model inputs."""
-#         # SentenceTransformer model expects input_ids and attention_mask as input
-#         return [
-#             {
-#                 "input_ids": inputs[f"{column}_input_ids"],
-#                 "attention_mask": inputs[f"{column}_attention_mask"]
-#             }
-#             for column in self.text_columns
-#         ]
