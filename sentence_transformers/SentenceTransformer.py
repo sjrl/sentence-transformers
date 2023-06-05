@@ -542,6 +542,21 @@ class SentenceTransformer(nn.Sequential):
         labels = torch.tensor(labels)
         return sentence_features, labels
 
+    def smart_batching_collate_dict(self, batch):
+        """
+        Transforms a batch from a SmartBatchingDataset to a batch of tensors for the model
+        Here, batch is a list of tuples: [(tokens, label), ...]
+
+        :param batch:
+            a batch from a SmartBatchingDataset
+        :return:
+            a batch of tensors for the model
+        """
+        texts = [example["texts"] for example in batch]  # [[q1, p1, n1], [q2, p2, n2], ...]
+        sentence_features = [self.tokenize(sentence) for sentence in zip(*texts)]  # [(q1, q2, ...), (p1, p2, ...), (n1, n2, ...)]
+        labels = [example["label"] for example in batch]
+        labels = torch.tensor(labels)
+        return sentence_features, labels
 
     def _text_length(self, text: Union[List[int], List[List[int]]]):
         """
@@ -578,7 +593,8 @@ class SentenceTransformer(nn.Sequential):
             show_progress_bar: bool = True,
             checkpoint_path: str = None,
             checkpoint_save_steps: int = 500,
-            checkpoint_save_total_limit: int = 0
+            checkpoint_save_total_limit: int = 0,
+            use_smart_batching_collate_dict: bool = False,
             ):
         """
         Train the model with the given training objective
@@ -631,7 +647,10 @@ class SentenceTransformer(nn.Sequential):
 
         # Use smart batching
         for dataloader in dataloaders:
-            dataloader.collate_fn = self.smart_batching_collate
+            if use_smart_batching_collate_dict:
+                dataloader.collate_fn = self.smart_batching_collate_dict
+            else:
+                dataloader.collate_fn = self.smart_batching_collate
 
         loss_models = [loss for _, loss in train_objectives]
         for loss_model in loss_models:
