@@ -54,10 +54,9 @@ class CLIPLoss(nn.Module):
 
         scores = self.similarity_fct(embeddings_a, embeddings_b) * self.scale
         if self.symmetric_loss:
-            loss = (torch.softmax(scores, dim=1).diag().mean() + torch.softmax(scores, dim=0).diag().mean()) / 2.0
+            loss = -1. * (torch.softmax(scores, dim=1).diag().mean() + torch.softmax(scores, dim=0).diag().mean()) / 2.0
         else:
-            loss = torch.softmax(scores, dim=1).diag().mean()
-        loss = -1 * loss
+            loss = -1. * torch.softmax(scores, dim=1).diag().mean()
         return loss
 
     def get_config_dict(self):
