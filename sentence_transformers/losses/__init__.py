@@ -11,6 +11,7 @@ from .ContrastiveTensionLoss import *
 from .OnlineContrastiveLoss import *
 from .MegaBatchMarginLoss import *
 from .DenoisingAutoEncoderLoss import *
+from .CLIPLoss import CLIPLoss
 
 # Triplet losses
 from .BatchHardTripletLoss import *

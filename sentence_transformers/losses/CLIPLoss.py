@@ -18,7 +18,7 @@ class CLIPLoss(nn.Module):
 
         The performance usually increases with increasing batch sizes.
 
-        You can also provide one or multiple hard negatives per anchor-positive pair by structring the data like this:
+        You can also provide one or multiple hard negatives per anchor-positive pair by structuring the data like this:
         (a_1, p_1, n_1), (a_2, p_2, n_2)
 
         Here, n_1 is a hard negative for (a_1, p_1). The loss will use for the pair (a_i, p_i) all p_j (j!=i) and all n_j as negatives.
