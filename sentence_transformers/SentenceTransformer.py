@@ -743,7 +743,7 @@ class SentenceTransformer(nn.Sequential):
                 if checkpoint_path is not None and checkpoint_save_steps is not None and checkpoint_save_steps > 0 and global_step % checkpoint_save_steps == 0:
                     self._save_checkpoint(checkpoint_path, checkpoint_save_total_limit, global_step)
 
-                log_every = min(int(num_train_steps * 0.05), 20)
+                log_every = min(int(num_train_steps * 0.02), 20)
                 if output_path is not None and training_steps % log_every == 0:
                     with open(os.path.join(output_path, "train_logs.jsonl"), "a") as f1:
                         f1.write(json.dumps(train_log[-1]) + "\n")
