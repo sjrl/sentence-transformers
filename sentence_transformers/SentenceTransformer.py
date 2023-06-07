@@ -526,7 +526,7 @@ class SentenceTransformer(nn.Sequential):
 
         return push_return
 
-    def smart_batching_collate(self, batch):
+    def old_smart_batching_collate(self, batch):
         """
         Transforms a batch from a SmartBatchingDataset to a batch of tensors for the model
         Here, batch is a list of tuples: [(tokens, label), ...]
@@ -538,6 +538,46 @@ class SentenceTransformer(nn.Sequential):
         """
         texts = [example.texts for example in batch]  # [[q1, p1, n1], [q2, p2, n2], ...]
         sentence_features = [self.tokenize(sentence) for sentence in zip(*texts)]  # [(q1, q2, ...), (p1, p2, ...), (n1, n2, ...)]
+        labels = [example.label for example in batch]
+        labels = torch.tensor(labels)
+        return sentence_features, labels
+
+    def smart_batching_collate(self, batch):
+        """
+        Transforms a batch from a SmartBatchingDataset to a batch of tensors for the model
+        Here, batch is a list of tuples: [(tokens, label), ...]
+
+        NOTE: This works with examples that have a variable amount of negatives. For example,
+        [[q1, p1, n1], [q2, p2], [q3, p3, n3], ...] works.
+
+        :param batch:
+            a batch from a SmartBatchingDataset
+        :return:
+            a batch of tensors for the model
+        """
+        # [[q1, p1, n1], [q2, p2], [q3, p3, n3], ...]
+        # [(q1, q2, q3, ...), (p1, p2, p3, ...), (n1, n3, ...)]
+        # Version 1: using num_texts
+        # num_texts = max([len(e.texts) for e in batch])
+        # texts = [[] for _ in range(num_texts)]
+        # for example in batch:
+        #     for idx, text in enumerate(example.texts):
+        #         texts[idx].append(text)
+        # Version 2: Using try-except blocks
+        texts = []
+        for example in batch:
+            for idx, text in enumerate(example.texts):
+                try:
+                    texts[idx].append(text)
+                except IndexError:
+                    texts.append([text])
+
+        # [(q1, q2, q3, ...), (p1, p2, p3, ...), (n1, n3, ...)]
+        sentence_features = []
+        for idx in range(len(texts)):
+            tokenized = self.tokenize(texts[idx])
+            sentence_features.append(tokenized)
+
         labels = [example.label for example in batch]
         labels = torch.tensor(labels)
         return sentence_features, labels
